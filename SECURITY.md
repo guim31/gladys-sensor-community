@@ -30,6 +30,21 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **No secret.** The public data API of Sensor.Community needs no account nor
+  key, and the pages of an airRohr box it reads (`/data.json`, `/metrics`) need
+  no password. Credentials typed in the box address are dropped before use and
+  never logged.
+- **`/data`** holds `sensors.json`: the type, measures, last reading and
+  approximate public location of each configured sensor, and the chip id of
+  the local box. No personal data beyond what the public map already shows.
+- **The house location** (Gladys `location` authorization) is read only when
+  the user clicks "Find sensors near a house", to build the search box sent to
+  the public API; it is never stored nor logged.
+- **Network**: HTTPS requests to `data.sensor.community`, and HTTP requests to
+  the address of the local box the user typed. Nothing listens.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+the Sensor.Community services and the airRohr firmware.

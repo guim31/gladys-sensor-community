@@ -1,0 +1,42 @@
+[
+  {
+    "sensor": {
+      "sensor_type": {
+        "manufacturer": "DNMS",
+        "name": "DNMS (Laerm)",
+        "id": 29
+      },
+      "pin": "15",
+      "id": 70005
+    },
+    "timestamp": "2026-10-14 08:02:10",
+    "sampling_rate": null,
+    "sensordatavalues": [
+      {
+        "value": "52.47",
+        "id": 88000000050,
+        "value_type": "noise_LAeq"
+      },
+      {
+        "value": "41.30",
+        "id": 88000000051,
+        "value_type": "noise_LA_min"
+      },
+      {
+        "value": "68.95",
+        "id": 88000000052,
+        "value_type": "noise_LA_max"
+      }
+    ],
+    "id": 8800000005,
+    "location": {
+      "country": "FR",
+      "latitude": "43.598",
+      "exact_location": 0,
+      "altitude": "140.0",
+      "longitude": "1.437",
+      "indoor": 0,
+      "id": 90004
+    }
+  }
+]

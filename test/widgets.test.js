@@ -1,77 +1,132 @@
+// -----------------------------------------------------------------------------
+// The "Air quality" widget: every content fits the core's vocabulary and
+// budget (validateWidgetContent), and every tile is bound to a feature the
+// device really has.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { validateWidgetContent, WIDGET_COLORS } from '@gladysassistant/integration-sdk';
+import { BOX_URL, createAll, createWorld } from './helpers/world.js';
+import { sensorIdOf } from './helpers/network.js';
+import { levelColor } from '../src/widgets.js';
+import { TEXT } from '../src/i18n.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+const SDS = sensorIdOf('sds011');
+const BAD = sensorIdOf('sds011-polluted');
+const BME = sensorIdOf('bme280');
+const LANGS = ['en', 'fr', 'de', 'es'];
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+async function world() {
+  const w = await createWorld({
+    fixtures: ['sds011', 'sds011-polluted', 'bme280'],
+    config: { sensor_ids: `${SDS},${BAD},${BME}`, local_address: '192.0.2.20' },
+    network: { boxes: { [BOX_URL]: {} } },
+  });
+  await createAll(w);
+  return w;
+}
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
+async function content(w, settings, language) {
+  const ack = await w.gladys.fake.widgetGet('air_quality', { settings, language });
+  assert.equal(ack.success, true, ack.error);
+  return ack.data.content;
+}
 
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+/** Every device_feature of a content exists on a discovered device. */
+function assertBound(w, widgetContent) {
+  const known = new Set(
+    w.gladys.fake.discoveredDevices.flatMap((d) => d.features.map((f) => f.external_id)),
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
+  for (const component of widgetContent.components) {
+    if (component.device_feature) {
+      assert.ok(known.has(component.device_feature), `unknown feature ${component.device_feature}`);
+    }
   }
+}
+
+test('one sensor: live tiles, the level colored by its band, the measurement age', async () => {
+  const w = await world();
+  const sensor = w.gladys.externalIds('sensor', SDS).device;
+  for (const language of LANGS) {
+    const c = await content(w, { sensor }, language);
+    assert.deepEqual(validateWidgetContent(c), [], language);
+    assertBound(w, c);
+  }
+  const c = await content(w, { sensor }, 'fr');
+  assert.deepEqual(
+    c.components.filter((x) => x.type === 'value').map((x) => x.device_feature.split(':').pop()),
+    ['pm25', 'pm10'],
+  );
+  const status = c.components.find((x) => x.type === 'status');
+  assert.deepEqual(status.items[0], {
+    label: "Qualité de l'air",
+    value: 'Moyen',
+    color: WIDGET_COLORS.SUCCESS,
+  });
+  assert.equal(status.items[1].value, 'il y a 1 min');
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
-});
-
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('the local box: its first sensor of each measure', async () => {
+  const w = await world();
+  const sensor = w.gladys.externalIds('airrohr', 'esp8266-1234567').device;
+  const c = await content(w, { sensor }, 'en');
+  assert.deepEqual(validateWidgetContent(c), []);
+  assertBound(w, c);
+  assert.deepEqual(
+    c.components.filter((x) => x.type === 'value').map((x) => x.device_feature.split(':').pop()),
+    ['sds_pm25', 'sds_pm10', 'bme280_temperature', 'bme280_humidity'],
   );
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('no sensor chosen: one row per sensor measuring particles, colored', async () => {
+  const w = await world();
+  for (const language of LANGS) {
+    assert.deepEqual(validateWidgetContent(await content(w, {}, language)), [], language);
+  }
+  const c = await content(w, {}, 'en');
+  const status = c.components.find((x) => x.type === 'status');
+  assert.deepEqual(
+    status.items.map((item) => [item.value, item.color]),
+    [
+      ['Fair', WIDGET_COLORS.SUCCESS],
+      ['Very poor', WIDGET_COLORS.DANGER],
+      ['Fair', WIDGET_COLORS.SUCCESS],
+    ],
+    'the BME280 (no particles) is left out',
+  );
+});
+
+test('a stale sensor shows how old its measurement is, never a level', async () => {
+  const w = await world();
+  w.network.sensors[SDS] = [];
+  w.advance(2 * 60 * 60_000);
+  await w.app.poller.cycle();
+  const sensor = w.gladys.externalIds('sensor', SDS).device;
+  const c = await content(w, { sensor }, 'en');
+  assert.deepEqual(validateWidgetContent(c), []);
+  const status = c.components.find((x) => x.type === 'status');
+  assert.deepEqual(status.items, [
+    { label: 'Air quality', value: 'Stale (2 h)', color: WIDGET_COLORS.NEUTRAL, icon: 'clock' },
+  ]);
+});
+
+test('empty states: no sensor added, a sensor no longer configured', async () => {
+  const w = await createWorld({ fixtures: ['sds011'], config: { sensor_ids: SDS } });
+  const none = await content(w, {}, 'de');
+  assert.deepEqual(validateWidgetContent(none), []);
+  assert.equal(none.components[0].text, TEXT.noSensor.de);
+  const gone = await content(w, { sensor: w.gladys.externalIds('sensor', '999').device }, 'es');
+  assert.equal(gone.components[0].text, TEXT.unknownSensor.es);
+});
+
+test('level colors: good and fair green, moderate orange, worse red', () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map(levelColor), [
+    'success',
+    'success',
+    'warning',
+    'danger',
+    'danger',
+    'danger',
+  ]);
 });

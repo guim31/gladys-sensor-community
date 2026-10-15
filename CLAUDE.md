@@ -5,9 +5,11 @@ contributors.
 
 ## What this is
 
-A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
-no build step) that runs in its own sandboxed Docker container and talks to
-Gladys through
+A Gladys Assistant **external integration** for
+[Sensor.Community](https://sensor.community) (ex-Luftdaten) citizen sensors:
+public sensors through the public data API, and the user's own airRohr box on
+the LAN. A Node.js service (Node 22+, ESM, no build step) that runs in its own
+sandboxed Docker container and talks to Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
 its only runtime dependency. It started from the official JavaScript template.
 
@@ -22,6 +24,7 @@ npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
 npx github:GladysAssistant/integration-store .   # store admission checks
+node scripts/probe.mjs <id | lat,lon[,km] | box address>   # real services, read only
 ```
 
 The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
@@ -31,16 +34,26 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only: registerHandlers, shutdown
+src/app.js                        every handler, registered before connect(); testable on the fake Gladys
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/api.js                        public data API client (sensor, box filter), User-Agent, distances
+src/local.js                      airRohr box client (/data.json, /metrics for the chip id)
+src/measures.js                   value types -> measures, units, European Air Quality Index
+src/devices.js                    discovery payload of a record (features, external ids)
+src/hub.js                        records (what each sensor measures, last reading), states, scene event
+src/poller.js                     the container's own timer (Gladys#3198), onPoll fallback
+src/store.js                      /data/sensors.json (atomic writes)
+src/issues.js                     a failure logged once, its recovery once
+src/actions.js                    Configuration buttons: find_nearby, check_sensors
+src/scenes.js                     scene action get_air_quality
+src/widgets.js                    widget air_quality
+src/i18n.js                       every user-facing text, en/fr/de/es
+scripts/probe.mjs                 read the real services with the integration's clients
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (same sections)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/helpers/                     simulated API and box (network.js), test world (world.js)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +83,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in four languages (English, French, German with
+  "du", Spanish with "usted"): action messages, manifest texts, widget and
+  scene texts, feature names, and `docs/{en,fr,de,es}.md` with the same
+  sections. `test/i18n.test.js` enforces it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +248,38 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Sensor.Community : API et pièges (cette intégration)
+
+- **Deux sources.** L'API publique `https://data.sensor.community/airrohr/v1/sensor/<id>/` ne sert que
+  les mesures des **5 dernières minutes** : un tableau vide veut dire capteur muet **ou** identifiant
+  inexistant, on ne peut pas les distinguer. Le boîtier local sert `/data.json` (la dernière mesure,
+  `age` en secondes, négatif avant la première) et `/metrics` (le `node="esp8266-…"`, seule identité
+  stable du boîtier : `/data.json` n'en porte aucune). Aucune des deux pages ne demande de mot de passe.
+- **Un identifiant d'API = un capteur physique**, pas un boîtier : un airRohr SDS011 + BME280 a deux
+  identifiants. D'où un appareil par identifiant, et un appareil pour le boîtier local avec tous ses
+  capteurs, dont les clés de fonctionnalités portent la famille (`bme280_temperature`,
+  `dht_temperature`) car un boîtier peut mesurer deux fois la même grandeur.
+- **Noms des types** : `P1` = PM10, `P2` = PM2.5, `P0` = PM1 (héritage du premier capteur). En local, les
+  types sont préfixés (`SDS_P1`, `BME280_pressure`…), sauf le DHT22 (`temperature`, `humidity`). Les
+  pressions arrivent en **pascals** : converties en hPa.
+- **Conditions de l'API** (wiki `opendata-stuttgart/meta`, page EN-APIs) : un `User-Agent` qui identifie
+  la source est **obligatoire** depuis le 04/11/2022 ; préférer `box=` à `area=` ; les données bougent
+  toutes les 5 minutes. D'où : 5 minutes au plus vite, 20 capteurs au plus, lus l'un après l'autre.
+- **Horodatages de l'API en UTC**, écrits `2026-10-14 08:02:31` sans fuseau.
+- **Fonctionnalités apprises des données**, jamais retirées, mémorisées dans `/data/sensors.json` : un
+  redémarrage publie l'appareil complet même capteur muet. Un appareil sans aucune mesure connue n'est
+  pas publié (il serait ajouté incomplet) et reste lu jusqu'à sa première mesure.
+- **Valeur périmée** (plus de 15 min) : plus publiée, sinon Gladys la daterait de maintenant ; seule
+  l'« âge de la mesure » avance. Au retour, tout est republié (`forgetPublishedStates`), même une valeur
+  inchangée.
+- **Pas de catégorie PM1 ni PM4 dans Gladys 5.2.1** : PM1 publié en `pm25-sensor/decimal` nommé « PM1 »
+  (choix assumé, signalé dans la doc), PM4 et comptages ignorés. `noise-sensor` n'a que `integer`.
+- **Indice européen (EAQI, AEE révisé 2024)** : PM2.5 ≤ 5/15/50/90/140, PM10 ≤ 15/45/120/195/270 µg/m³.
+  Le déclencheur n'annonce un niveau qu'après **deux relevés de suite** (un capteur à bas coût oscille
+  autour d'un seuil).
+- **La session de code n'a pas accès à l'API** (proxy) : les fixtures suivent le format documenté et la
+  réponse DHT22 des tests de `python-luftdaten` ; `scripts/probe.mjs` sert à vérifier depuis une machine
+  qui a le réseau.
+- `getHouses()` exige `"location": true` dans le manifeste (403 sinon) ; un select `source: "houses"`
+  exige `gladys_version >= 5.2.0`.
