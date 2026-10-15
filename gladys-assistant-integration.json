@@ -8,8 +8,8 @@
     "de": "Luftqualität, Lärm und Wetter der Bürgersensoren von Sensor.Community, deine oder nahe.",
     "es": "Calidad del aire, ruido y clima de los sensores ciudadanos Sensor.Community, suyos o cercanos."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-sensor-community:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-sensor-community:1.0.1",
   "gladys_version": ">=5.2.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-sensor-community/main/cover.png",
   "categories": ["environment"],

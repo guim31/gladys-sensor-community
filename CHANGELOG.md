@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-15
+
 ### Added
 
 - Public Sensor.Community sensors, read by their id through the public data
@@ -28,4 +30,5 @@ the notes of the version's GitHub Release.
   scene action "Get the air quality".
 - Texts and documentation in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-sensor-community/commits/main
+[Unreleased]: https://github.com/guim31/gladys-sensor-community/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-sensor-community/releases/tag/v1.0.1

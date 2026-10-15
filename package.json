@@ -1,6 +1,6 @@
 {
   "name": "gladys-sensor-community",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Gladys Assistant external integration for Sensor.Community (ex-Luftdaten) citizen air quality sensors.",
   "type": "module",
