@@ -1,0 +1,8 @@
+software_version{version="NRZ-2020-133",node="esp8266-1234567"} 1
+uptime_ms{node="esp8266-1234567"} 3618412
+sending_intervall_ms{node="esp8266-1234567"} 145000
+number_of_measurements{node="esp8266-1234567"} 24
+SDS_P1{node="esp8266-1234567"} 12.30
+SDS_P2{node="esp8266-1234567"} 6.70
+last_sample_age_ms{node="esp8266-1234567"} 104000
+# EOF

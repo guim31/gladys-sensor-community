@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-sensor-community",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Gladys Assistant external integration for Sensor.Community (ex-Luftdaten) citizen air quality sensors.",
   "type": "module",
   "main": "index.js",
   "scripts": {

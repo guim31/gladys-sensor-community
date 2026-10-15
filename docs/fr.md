@@ -1,67 +1,201 @@
-# Template de démonstration
+# Sensor.Community
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Qualité de l'air, bruit et météo des capteurs citoyens de
+[Sensor.Community](https://sensor.community) (ex-Luftdaten) : votre propre
+boîtier airRohr, ou les capteurs publics autour de chez vous.
 
-## Ce que vous obtenez
+> Développée sans le matériel : vos retours sont bienvenus. L'intégration a
+> été écrite et testée sur des réponses enregistrées de l'API publique et du
+> firmware airRohr, pas sur un vrai boîtier. Dites-nous sur le forum de Gladys
+> comment elle se comporte avec le vôtre.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Cette intégration n'est pas affiliée à Sensor.Community.
+
+## Ce qu'elle fait
+
+- Lit des **capteurs publics** du réseau Sensor.Community par leur
+  identifiant, sans compte ni clé.
+- Lit **votre propre boîtier airRohr** directement sur votre réseau, pour des
+  valeurs en direct chaque minute (facultatif).
+- Crée **un appareil par capteur** : PM2.5, PM10, PM1 s'il est mesuré,
+  température, humidité, pression, bruit, CO2, selon le capteur.
+- Calcule l'**indice européen de qualité de l'air** (AEE) à partir des PM2.5 et
+  PM10, et indique l'âge de la dernière mesure : un capteur muet est signalé.
+- Ajoute un widget **Qualité de l'air** au tableau de bord, un déclencheur de
+  scène **La qualité de l'air a changé** et une action de scène **Obtenir la
+  qualité de l'air**.
+
+Lecture seule : l'intégration ne modifie jamais rien sur un capteur.
+
+## Prérequis
+
+- Gladys Assistant **5.2.0** ou plus récent.
+- Un accès à Internet pour les capteurs publics (l'API de données de
+  Sensor.Community).
+- Pour votre boîtier : un airRohr (ou tout boîtier sous le firmware
+  Sensor.Community) joignable depuis Gladys, avec une **adresse IP fixe**
+  (réservation DHCP sur votre box).
+- Pour la recherche des capteurs proches : la position de votre maison, dans
+  **Paramètres → Maisons**. L'intégration demande l'accès aux coordonnées des
+  maisons sur l'écran d'installation ; elle ne s'en sert que pour cette
+  recherche.
 
 ## Configuration
 
+### Choisir les capteurs
+
 1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+2. Cliquez sur **Trouver les capteurs autour d'une maison** : choisissez la
+   maison (vide : la première maison située) et un rayon (vide : 2 km). Le
+   résultat liste les capteurs qui ont envoyé des données ces 5 dernières
+   minutes, du plus proche au plus loin, avec leur type, leur distance et leurs
+   mesures, et les identifiants prêts à copier.
+3. Copiez les identifiants voulus dans **Identifiants des capteurs**, séparés
+   par des virgules (20 au plus). L'identifiant est aussi le numéro affiché
+   quand vous cliquez sur un capteur de la [carte](https://maps.sensor.community).
+4. Enregistrez : les appareils apparaissent dans l'onglet **Découverte** dès
+   que leur première mesure est lue. Ajoutez-les à Gladys.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Astuce : le capteur de particules (SDS011, SPS30…) et le capteur météo
+(BME280, DHT22…) d'un même boîtier ont deux identifiants différents : ajoutez
+les deux.
 
-## Actions
+### Votre propre boîtier airRohr
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Saisissez son adresse IP dans **Adresse de votre boîtier airRohr** (par
+exemple `192.0.2.20`). Utilisez l'adresse IP : les noms en `.local` ne sont pas
+résolus depuis le conteneur de l'intégration. Le boîtier est lu chaque minute
+par sa page `/data.json` ; aucun mot de passe n'est nécessaire.
+
+### Autres réglages
+
+- **Relevé des capteurs publics** : toutes les 5, 10, 15 ou 30 minutes. Les
+  données publiques changent toutes les 5 minutes et Sensor.Community demande
+  de la modération : 5 minutes au plus vite.
+- **Langue** : la langue des noms de fonctionnalités (fixés à l'ajout d'un
+  appareil) et des textes envoyés aux scènes. Français par défaut.
+
+Le bouton **Vérifier les capteurs** lit chaque capteur configuré et indique ce
+qu'il répond : son type et l'âge de sa mesure, aucune donnée, ou une erreur.
+
+## Appareils
+
+### Capteur public
+
+Un appareil par identifiant, nommé `Sensor.Community #<identifiant> (<type>)`.
+Ses fonctionnalités suivent ce que mesure le capteur :
+
+| Fonctionnalité                    | Unité | Capteurs                        |
+| --------------------------------- | ----- | ------------------------------- |
+| PM2.5, PM10                       | µg/m³ | SDS011, SPS30, PMS, HPM, NextPM |
+| PM1                               | µg/m³ | SPS30, PMS, NextPM              |
+| Température, Humidité             | °C, % | BME280, DHT22, SHT3x, HTU21D    |
+| Pression                          | hPa   | BME280, BMP280, BMP180          |
+| Pression au niveau de la mer      | hPa   | BME280, BMP280, BMP180          |
+| Bruit (LAeq), minimum, maximum    | dB    | DNMS                            |
+| CO2                               | ppm   | SCD30                           |
+| Indice de qualité de l'air (EAQI) | 1 à 6 | tout capteur de particules      |
+| Âge de la mesure                  | min   | tout capteur                    |
+
+Chaque valeur est la moyenne des mesures des 5 dernières minutes, comme sur la
+carte de Sensor.Community. Le PM1 est présenté comme une fonctionnalité de type
+PM2.5 (Gladys n'a pas de catégorie PM1), nommée « PM1 ».
+
+### Votre boîtier airRohr
+
+Un appareil nommé `airRohr <identifiant de la puce>` (par exemple
+`airRohr esp8266-1234567`), avec tous les capteurs branchés sur le boîtier. Le
+nom de chaque fonctionnalité porte le capteur : « Température (BME280) »,
+« Température (DHT22) ».
+
+### Indice de qualité de l'air
+
+L'**indice européen de qualité de l'air** de l'Agence européenne pour
+l'environnement, de 1 à 6 : bon, moyen, dégradé, mauvais, très mauvais,
+extrêmement mauvais. Le pire des PM2.5 et PM10 fixe le niveau (seuils révisés
+en 2024 : PM2.5 jusqu'à 5, 15, 50, 90, 140 µg/m³ ; PM10 jusqu'à 15, 45, 120,
+195, 270 µg/m³). L'AEE le calcule sur des moyennes validées de stations de
+référence : sur un capteur citoyen et 5 minutes, c'est une indication.
+
+### Âge de la mesure
+
+Les minutes écoulées depuis la dernière mesure du capteur. Au-delà de 15
+minutes, la mesure est **périmée** : l'intégration cesse d'envoyer ses valeurs
+(Gladys continue d'afficher les dernières avec leur date), le widget indique
+« Périmée » et l'âge continue de grandir, pour qu'une scène puisse vous
+prévenir.
+
+## Widget
+
+Ajoutez le widget **Qualité de l'air** à un tableau de bord.
+
+- Avec un **capteur** choisi dans ses réglages : des tuiles en direct (PM2.5,
+  PM10, température, humidité), le niveau de l'indice européen coloré selon son
+  seuil (vert pour bon et moyen, orange pour dégradé, rouge au-delà) et l'âge
+  de la mesure.
+- Sans capteur : une ligne par capteur de particules, avec son niveau.
 
 ## Scènes
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+### Déclencheur : La qualité de l'air a changé
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+Lance la scène quand l'indice européen d'un capteur atteint un autre niveau,
+confirmé par deux relevés de suite (une bouffée de fumée ne le déclenche pas).
+Filtres : le capteur, et les nouveaux niveaux qui comptent (par exemple
+mauvais, très mauvais, extrêmement mauvais). Variables disponibles pour les
+actions suivantes : nom du capteur, niveau (en toutes lettres, dans la langue
+configurée), niveau de 1 à 6, niveau précédent, polluant qui fixe le niveau,
+PM2.5 et PM10.
 
-## Tableau de bord
+### Action : Obtenir la qualité de l'air
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Donne la qualité de l'air d'un capteur, ou, sans capteur, la pire des capteurs
+mesurés ces 15 dernières minutes. Sorties : un **résumé** prêt pour une
+notification (« Mauvais · PM2.5 62 µg/m³ · PM10 80 µg/m³ · il y a 3 min »), le
+niveau en toutes lettres, sa clé et son numéro, PM2.5, PM10 et l'âge de la
+mesure.
+
+## Exemples de scènes
+
+- **Fermer les fenêtres quand l'air se dégrade** : déclencheur « La qualité de
+  l'air a changé » avec les niveaux mauvais, très mauvais, extrêmement mauvais
+  → envoyer le message « Air {{triggerEvent.data.level_label}} autour de
+  {{triggerEvent.data.sensor_name}} : fermez les fenêtres ».
+- **Point du matin** : à 7 h 30 → action « Obtenir la qualité de l'air » →
+  envoyer le résumé dans le message du matin.
+- **Capteur muet** : déclencheur sur la fonctionnalité « Âge de la mesure »
+  au-dessus de 60 minutes → prévenir que le capteur (ou le Wi-Fi du boîtier)
+  est en panne.
+- **Ventilation** : quand l'indice de votre boîtier revient à bon ou moyen,
+  lancer la VMC.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Aucun appareil dans l'onglet Découverte** : un capteur apparaît dès que sa
+  première mesure est lue. Cliquez sur **Vérifier les capteurs** : « aucune
+  donnée depuis 5 minutes » signifie que le capteur est hors ligne, ou que
+  l'identifiant est faux (l'API répond la même chose dans les deux cas).
+  Vérifiez l'identifiant sur la carte.
+- **Le statut indique que l'API ne répond pas** : l'API de Sensor.Community
+  est en panne ou injoignable depuis Gladys ; les relevés reprennent d'eux-mêmes.
+- **Votre boîtier ne répond pas** : vérifiez son adresse IP (fixe), qu'il est
+  alimenté et sur le même réseau que Gladys, et ouvrez
+  `http://<son adresse>/data.json` dans un navigateur.
+- **Un boîtier au firmware ancien** (avant 2020) n'a pas de page `/metrics` :
+  son appareil est alors nommé d'après son adresse, et une nouvelle adresse
+  donne un nouvel appareil. Mettez le firmware à jour.
+- Journaux : ouvrez les logs de l'intégration depuis Gladys. Réglez
+  `LOG_LEVEL=debug` pour voir chaque relevé.
+
+## Limites
+
+- Des données de capteurs citoyens, pas de stations de référence : les
+  capteurs de particules à bas coût surestiment par air humide (brouillard,
+  pluie). Lisez les valeurs comme des tendances.
+- Les capteurs publics sont lus toutes les 5 minutes au plus, et 20 capteurs
+  au plus.
+- Seuls les PM2.5 et PM10 entrent dans l'indice européen : les autres polluants
+  de l'indice officiel (ozone, NO2, SO2) ne sont pas mesurés par ces capteurs.
+- Les PM4 et les comptages de particules (SPS30, IPS-7100) ne sont pas
+  affichés : Gladys n'a pas de catégorie pour eux.
+- L'intégration lit ; elle ne configure jamais un boîtier.

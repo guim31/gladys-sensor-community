@@ -1,177 +1,537 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Sensor.Community",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Air quality, noise and weather from Sensor.Community citizen sensors, yours or nearby.",
+    "fr": "Qualité de l'air, bruit et météo des capteurs citoyens Sensor.Community, le vôtre ou voisins.",
+    "de": "Luftqualität, Lärm und Wetter der Bürgersensoren von Sensor.Community, deine oder nahe.",
+    "es": "Calidad del aire, ruido y clima de los sensores ciudadanos Sensor.Community, suyos o cercanos."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
-  "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "docker_image": "ghcr.io/guim31/gladys-sensor-community:1.0.0",
+  "gladys_version": ">=5.2.0",
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-sensor-community/main/cover.png",
+  "categories": ["environment"],
+  "transports": ["cloud"],
+  "location": true,
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Citizen sensors",
+        "fr": "Capteurs citoyens",
+        "de": "Bürgersensoren",
+        "es": "Sensores ciudadanos"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Read public Sensor.Community sensors (no account) by their id, the number shown on the map, or your own airRohr box on your network. Not affiliated with Sensor.Community.",
+        "fr": "Lisez des capteurs publics Sensor.Community (sans compte) par leur identifiant, le numéro affiché sur la carte, ou votre propre boîtier airRohr sur votre réseau. Non affilié à Sensor.Community.",
+        "de": "Lies öffentliche Sensoren von Sensor.Community (ohne Konto) über ihre ID, die Nummer auf der Karte, oder deine eigene airRohr-Box in deinem Netzwerk. Nicht mit Sensor.Community verbunden.",
+        "es": "Lea sensores públicos de Sensor.Community (sin cuenta) por su identificador, el número que muestra el mapa, o su propia caja airRohr en su red. Sin afiliación con Sensor.Community."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://maps.sensor.community",
+          "label": {
+            "en": "Map of the sensors",
+            "fr": "Carte des capteurs",
+            "de": "Karte der Sensoren",
+            "es": "Mapa de los sensores"
+          }
+        },
+        {
+          "url": "https://sensor.community",
+          "label": {
+            "en": "Build your own sensor",
+            "fr": "Construire son capteur",
+            "de": "Eigenen Sensor bauen",
+            "es": "Construir su sensor"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "sensor_ids",
+      "type": "string",
+      "label": {
+        "en": "Sensor ids",
+        "fr": "Identifiants des capteurs",
+        "de": "Sensor-IDs",
+        "es": "Identificadores de los sensores"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "The ids of the public sensors to read, separated by commas (20 at most). The \"Find sensors near a house\" button below lists those around you.",
+        "fr": "Les identifiants des capteurs publics à lire, séparés par des virgules (20 au plus). Le bouton « Trouver les capteurs autour d'une maison » ci-dessous liste ceux qui vous entourent.",
+        "de": "Die IDs der zu lesenden öffentlichen Sensoren, durch Kommas getrennt (höchstens 20). Der Button „Sensoren um ein Haus finden“ unten listet die in deiner Nähe auf.",
+        "es": "Los identificadores de los sensores públicos que desea leer, separados por comas (20 como máximo). El botón «Buscar sensores alrededor de una casa» más abajo lista los de su zona."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "placeholder": {
+        "en": "e.g. 12345, 12346",
+        "fr": "ex. 12345, 12346",
+        "de": "z. B. 12345, 12346",
+        "es": "p. ej. 12345, 12346"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "local_address",
+      "type": "string",
+      "label": {
+        "en": "Address of your airRohr box",
+        "fr": "Adresse de votre boîtier airRohr",
+        "de": "Adresse deiner airRohr-Box",
+        "es": "Dirección de su caja airRohr"
+      },
+      "description": {
+        "en": "Optional: the IP address of your own box on your network, read every minute for live values. Use its IP address: names ending in .local do not resolve from the integration.",
+        "fr": "Facultatif : l'adresse IP de votre propre boîtier sur votre réseau, lu chaque minute pour des valeurs en direct. Utilisez son adresse IP : les noms en .local ne sont pas résolus depuis l'intégration.",
+        "de": "Optional: die IP-Adresse deiner eigenen Box in deinem Netzwerk, jede Minute für Live-Werte gelesen. Nutze ihre IP-Adresse: Namen auf .local werden von der Integration aus nicht aufgelöst.",
+        "es": "Opcional: la dirección IP de su propia caja en su red, leída cada minuto para obtener valores en directo. Use su dirección IP: los nombres terminados en .local no se resuelven desde la integración."
+      },
+      "placeholder": {
+        "en": "e.g. 192.0.2.20",
+        "fr": "ex. 192.0.2.20",
+        "de": "z. B. 192.0.2.20",
+        "es": "p. ej. 192.0.2.20"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "refresh_minutes",
+      "type": "select",
+      "label": {
+        "en": "Refresh of the public sensors",
+        "fr": "Relevé des capteurs publics",
+        "de": "Abruf der öffentlichen Sensoren",
+        "es": "Lectura de los sensores públicos"
+      },
+      "description": {
+        "en": "The public data moves every 5 minutes, and Sensor.Community asks for moderation: 5 minutes is the fastest.",
+        "fr": "Les données publiques changent toutes les 5 minutes, et Sensor.Community demande de la modération : 5 minutes au plus vite.",
+        "de": "Die öffentlichen Daten ändern sich alle 5 Minuten, und Sensor.Community bittet um Zurückhaltung: höchstens alle 5 Minuten.",
+        "es": "Los datos públicos cambian cada 5 minutos, y Sensor.Community pide moderación: 5 minutos como mínimo."
+      },
+      "required": false,
+      "default": "5",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "5",
+          "label": {
+            "en": "Every 5 minutes",
+            "fr": "Toutes les 5 minutes",
+            "de": "Alle 5 Minuten",
+            "es": "Cada 5 minutos"
+          }
+        },
+        {
+          "value": "10",
+          "label": {
+            "en": "Every 10 minutes",
+            "fr": "Toutes les 10 minutes",
+            "de": "Alle 10 Minuten",
+            "es": "Cada 10 minutos"
+          }
+        },
+        {
+          "value": "15",
+          "label": {
+            "en": "Every 15 minutes",
+            "fr": "Toutes les 15 minutes",
+            "de": "Alle 15 Minuten",
+            "es": "Cada 15 minutos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "Every 30 minutes",
+            "fr": "Toutes les 30 minutes",
+            "de": "Alle 30 Minuten",
+            "es": "Cada 30 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "language",
+      "type": "select",
+      "label": { "en": "Language", "fr": "Langue", "de": "Sprache", "es": "Idioma" },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Language of the feature names (set when a device is added) and of the scene texts.",
+        "fr": "Langue des noms de fonctionnalités (fixés à l'ajout d'un appareil) et des textes de scène.",
+        "de": "Sprache der Funktionsnamen (beim Hinzufügen eines Geräts festgelegt) und der Szenentexte.",
+        "es": "Idioma de los nombres de las funciones (fijados al añadir un dispositivo) y de los textos de escena."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": { "en": "English", "fr": "Anglais", "de": "Englisch", "es": "Inglés" }
+        },
+        {
+          "value": "fr",
+          "label": { "en": "French", "fr": "Français", "de": "Französisch", "es": "Francés" }
+        },
+        {
+          "value": "de",
+          "label": { "en": "German", "fr": "Allemand", "de": "Deutsch", "es": "Alemán" }
+        },
+        {
+          "value": "es",
+          "label": { "en": "Spanish", "fr": "Espagnol", "de": "Spanisch", "es": "Español" }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "find_nearby",
+      "label": {
+        "en": "Find sensors near a house",
+        "fr": "Trouver les capteurs autour d'une maison",
+        "de": "Sensoren um ein Haus finden",
+        "es": "Buscar sensores alrededor de una casa"
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
-          "key": "device",
+          "key": "house",
           "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "source": "houses",
+          "label": { "en": "House", "fr": "Maison", "de": "Haus", "es": "Casa" },
+          "description": {
+            "en": "Its location is set in Settings → Houses. Empty: the first located house.",
+            "fr": "Sa position se règle dans Paramètres → Maisons. Vide : la première maison située.",
+            "de": "Sein Standort wird unter Einstellungen → Häuser festgelegt. Leer: das erste Haus mit Standort.",
+            "es": "Su ubicación se define en Ajustes → Casas. Vacío: la primera casa con ubicación."
+          },
+          "required": false
+        },
+        {
+          "key": "radius_km",
+          "type": "select",
+          "label": { "en": "Radius", "fr": "Rayon", "de": "Radius", "es": "Radio" },
+          "description": {
+            "en": "Empty: 2 km.",
+            "fr": "Vide : 2 km.",
+            "de": "Leer: 2 km.",
+            "es": "Vacío: 2 km."
+          },
+          "required": false,
+          "options": [
+            { "value": "1", "label": { "en": "1 km", "fr": "1 km", "de": "1 km", "es": "1 km" } },
+            { "value": "2", "label": { "en": "2 km", "fr": "2 km", "de": "2 km", "es": "2 km" } },
+            { "value": "5", "label": { "en": "5 km", "fr": "5 km", "de": "5 km", "es": "5 km" } },
+            {
+              "value": "10",
+              "label": { "en": "10 km", "fr": "10 km", "de": "10 km", "es": "10 km" }
+            }
+          ]
         }
       ]
+    },
+    {
+      "key": "check_sensors",
+      "label": {
+        "en": "Check the sensors",
+        "fr": "Vérifier les capteurs",
+        "de": "Sensoren prüfen",
+        "es": "Comprobar los sensores"
+      },
+      "timeout_seconds": 120
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "air_quality_changed",
+      "label": {
+        "en": "Air quality changed",
+        "fr": "La qualité de l'air a changé",
+        "de": "Luftqualität hat sich geändert",
+        "es": "La calidad del aire ha cambiado"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The European index of a sensor reached another level, confirmed by two readings in a row.",
+        "fr": "L'indice européen d'un capteur a atteint un autre niveau, confirmé par deux relevés de suite.",
+        "de": "Der europäische Index eines Sensors hat eine andere Stufe erreicht, bestätigt durch zwei Messungen in Folge.",
+        "es": "El índice europeo de un sensor ha alcanzado otro nivel, confirmado por dos lecturas seguidas."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" }
         },
         {
-          "key": "target",
+          "key": "level",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "New level",
+            "fr": "Nouveau niveau",
+            "de": "Neue Stufe",
+            "es": "Nuevo nivel"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            { "value": "good", "label": { "en": "Good", "fr": "Bon", "de": "Gut", "es": "Buena" } },
+            {
+              "value": "fair",
+              "label": {
+                "en": "Fair",
+                "fr": "Moyen",
+                "de": "Ausreichend",
+                "es": "Razonablemente buena"
+              }
+            },
+            {
+              "value": "moderate",
+              "label": { "en": "Moderate", "fr": "Dégradé", "de": "Mäßig", "es": "Regular" }
+            },
+            {
+              "value": "poor",
+              "label": { "en": "Poor", "fr": "Mauvais", "de": "Schlecht", "es": "Desfavorable" }
+            },
+            {
+              "value": "very_poor",
+              "label": {
+                "en": "Very poor",
+                "fr": "Très mauvais",
+                "de": "Sehr schlecht",
+                "es": "Muy desfavorable"
+              }
+            },
+            {
+              "value": "extremely_poor",
+              "label": {
+                "en": "Extremely poor",
+                "fr": "Extrêmement mauvais",
+                "de": "Extrem schlecht",
+                "es": "Extremadamente desfavorable"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "sensor_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Sensor name",
+            "fr": "Nom du capteur",
+            "de": "Name des Sensors",
+            "es": "Nombre del sensor"
+          }
+        },
+        {
+          "key": "level",
+          "type": "string",
+          "label": {
+            "en": "Level (key)",
+            "fr": "Niveau (clé)",
+            "de": "Stufe (Schlüssel)",
+            "es": "Nivel (clave)"
+          }
+        },
+        {
+          "key": "level_label",
+          "type": "string",
+          "label": { "en": "Level", "fr": "Niveau", "de": "Stufe", "es": "Nivel" }
+        },
+        {
+          "key": "level_index",
+          "type": "number",
+          "label": {
+            "en": "Level, 1 to 6",
+            "fr": "Niveau, de 1 à 6",
+            "de": "Stufe, 1 bis 6",
+            "es": "Nivel, de 1 a 6"
+          }
+        },
+        {
+          "key": "previous_level",
+          "type": "string",
+          "label": {
+            "en": "Previous level (key)",
+            "fr": "Niveau précédent (clé)",
+            "de": "Vorherige Stufe (Schlüssel)",
+            "es": "Nivel anterior (clave)"
+          }
+        },
+        {
+          "key": "previous_level_index",
+          "type": "number",
+          "label": {
+            "en": "Previous level, 1 to 6",
+            "fr": "Niveau précédent, de 1 à 6",
+            "de": "Vorherige Stufe, 1 bis 6",
+            "es": "Nivel anterior, de 1 a 6"
+          }
+        },
+        {
+          "key": "pollutant",
+          "type": "string",
+          "label": {
+            "en": "Pollutant setting the level",
+            "fr": "Polluant qui fixe le niveau",
+            "de": "Schadstoff, der die Stufe bestimmt",
+            "es": "Contaminante que fija el nivel"
+          }
+        },
+        {
+          "key": "pm25",
+          "type": "number",
+          "label": {
+            "en": "PM2.5 (µg/m³)",
+            "fr": "PM2.5 (µg/m³)",
+            "de": "PM2.5 (µg/m³)",
+            "es": "PM2.5 (µg/m³)"
+          }
+        },
+        {
+          "key": "pm10",
+          "type": "number",
+          "label": {
+            "en": "PM10 (µg/m³)",
+            "fr": "PM10 (µg/m³)",
+            "de": "PM10 (µg/m³)",
+            "es": "PM10 (µg/m³)"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "get_air_quality",
+      "label": {
+        "en": "Get the air quality",
+        "fr": "Obtenir la qualité de l'air",
+        "de": "Luftqualität abrufen",
+        "es": "Obtener la calidad del aire"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Of one sensor, or the worst of the fresh readings, with a sentence ready for a notification.",
+        "fr": "D'un capteur, ou la pire des mesures récentes, avec une phrase prête pour une notification.",
+        "de": "Eines Sensors oder die schlechteste aktuelle Messung, mit einem fertigen Satz für eine Benachrichtigung.",
+        "es": "De un sensor, o la peor de las lecturas recientes, con una frase lista para una notificación."
+      },
+      "timeout_seconds": 10,
       "fields": [
         {
-          "key": "device",
+          "key": "sensor",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" },
+          "description": {
+            "en": "Empty: the worst of the sensors measured in the last 15 minutes.",
+            "fr": "Vide : le pire des capteurs mesurés ces 15 dernières minutes.",
+            "de": "Leer: der schlechteste der in den letzten 15 Minuten gemessenen Sensoren.",
+            "es": "Vacío: el peor de los sensores medidos en los últimos 15 minutos."
+          },
+          "required": false
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "summary",
+          "type": "string",
+          "label": { "en": "Summary", "fr": "Résumé", "de": "Zusammenfassung", "es": "Resumen" }
+        },
+        {
+          "key": "level_label",
+          "type": "string",
+          "label": { "en": "Level", "fr": "Niveau", "de": "Stufe", "es": "Nivel" }
+        },
+        {
+          "key": "level",
+          "type": "string",
+          "label": {
+            "en": "Level (key)",
+            "fr": "Niveau (clé)",
+            "de": "Stufe (Schlüssel)",
+            "es": "Nivel (clave)"
+          }
+        },
+        {
+          "key": "level_index",
+          "type": "number",
+          "label": {
+            "en": "Level, 1 to 6",
+            "fr": "Niveau, de 1 à 6",
+            "de": "Stufe, 1 bis 6",
+            "es": "Nivel, de 1 a 6"
+          }
+        },
+        {
+          "key": "pm25",
+          "type": "number",
+          "label": {
+            "en": "PM2.5 (µg/m³)",
+            "fr": "PM2.5 (µg/m³)",
+            "de": "PM2.5 (µg/m³)",
+            "es": "PM2.5 (µg/m³)"
+          }
+        },
+        {
+          "key": "pm10",
+          "type": "number",
+          "label": {
+            "en": "PM10 (µg/m³)",
+            "fr": "PM10 (µg/m³)",
+            "de": "PM10 (µg/m³)",
+            "es": "PM10 (µg/m³)"
+          }
+        },
+        {
+          "key": "age_minutes",
+          "type": "number",
+          "label": {
+            "en": "Measurement age (min)",
+            "fr": "Âge de la mesure (min)",
+            "de": "Alter der Messung (Min.)",
+            "es": "Antigüedad de la medición (min)"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "air_quality",
+      "label": {
+        "en": "Air quality",
+        "fr": "Qualité de l'air",
+        "de": "Luftqualität",
+        "es": "Calidad del aire"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "European index level of your sensors, colored by its band, with the live values.",
+        "fr": "Niveau de l'indice européen de vos capteurs, coloré selon son seuil, avec les valeurs.",
+        "de": "Stufe des europäischen Index deiner Sensoren, nach Schwelle eingefärbt, mit den Werten.",
+        "es": "Nivel del índice europeo de sus sensores, coloreado según su umbral, con los valores."
+      },
+      "icon": "wind",
+      "settings": [
+        {
+          "key": "sensor",
+          "type": "select",
+          "source": "devices",
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" },
+          "description": {
+            "en": "Empty: one row per sensor.",
+            "fr": "Vide : une ligne par capteur.",
+            "de": "Leer: eine Zeile pro Sensor.",
+            "es": "Vacío: una fila por sensor."
+          },
+          "required": false
+        }
+      ]
     }
   ]
 }

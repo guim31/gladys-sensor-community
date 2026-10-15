@@ -1,41 +1,64 @@
 // -----------------------------------------------------------------------------
-// Scene actions (SDK v0.14+, Gladys 5.1+).
+// Scene action "Get the air quality" (Gladys 5.1+).
 //
-// A scene action is an OPERATION a scene author places in a scene, with
-// parameters and a result: "identify this device", "take a snapshot", "clean
-// these rooms". Each one is declared in the manifest `scene_actions` field
-// (key, label, `fields` in the config_schema grammar, scalar `outputs`) and
-// handled here, keyed by that same `key`; index.js registers every entry with
-// `gladys.onSceneAction(key, ...)`.
+// Gives a scene the air quality of one sensor, or the worst among the fresh
+// readings of every added sensor, as outputs a notification can quote:
+// "{{...summary}}" reads "Poor · PM2.5 62 µg/m³ · PM10 80 µg/m³ · 3 min ago".
+// The devices already give each value to the scene conditions; what this
+// action adds is the choice of the worst sensor, the level as a word in the
+// configured language, and a ready-made sentence.
 //
-// Scene TRIGGERS are the other direction ("this happened"): they are fired by
-// the device that observes the event, see src/devices/motionSensor.js.
-//
-// The rules that matter:
-//   - `fields` arrive RESOLVED: scene variables substituted, defaults applied,
-//     validated by the core; a `"source": "devices"` field is the chosen
-//     device external_id;
-//   - resolve an object of the declared `outputs` (scalars only), readable by
-//     the following actions of the scene, or `undefined` for none. Keys not
-//     declared in the manifest are dropped by the core;
-//   - throwing fails THIS action only: the scene logs it and continues. A
-//     scene action is never a condition: return an output and let the scene
-//     author gate on it;
-//   - never fire a scene event as a consequence of a received action: a scene
-//     bound to that event would loop through the integration.
+// The trigger "Air quality changed" is fired by the hub (src/hub.js) when the
+// level of a sensor changes.
 // -----------------------------------------------------------------------------
 
-import { createLogger } from '@gladysassistant/integration-sdk';
-import { signalDevice } from './devices/index.js';
+import { MESSAGES, LEVELS, TEXT } from './i18n.js';
+import { hasAirQuality } from './devices.js';
 
-const logger = createLogger({ name: 'scenes' });
+export const GET_AIR_QUALITY = 'get_air_quality';
 
-export const SCENE_ACTIONS = {
-  // The ack is awaited under the action's `timeout_seconds` (15 s in the
-  // manifest), counted from the moment the scene reaches the action.
-  async identify_device(gladys, { fields, config }) {
-    logger.info(`Scene action identify_device <- ${fields.device}`);
-    const signalled = await signalDevice(gladys, fields.device, config);
-    return { signalled };
-  },
-};
+/**
+ * @param {import('./hub.js').Hub} hub
+ * @param {{ sensor?: string }} fields
+ * @param {string} language
+ */
+export function getAirQuality(hub, fields, language) {
+  const created = hub
+    .configuredRecords()
+    .filter((record) => hub.isCreated(record) && hasAirQuality(record));
+  let record;
+  if (fields.sensor) {
+    record = created.find((candidate) => candidate === hub.recordByDevice(fields.sensor));
+  } else {
+    // The worst level among the fresh readings; the most recent one on a tie.
+    const fresh = created.filter((candidate) => !hub.isStale(candidate) && hub.indexOf(candidate));
+    record = fresh.sort(
+      (a, b) =>
+        hub.indexOf(b).level - hub.indexOf(a).level || (b.measuredAt ?? 0) - (a.measuredAt ?? 0),
+    )[0];
+  }
+  const index = record && hub.indexOf(record);
+  if (!index || hub.ageMinutes(record) === null) {
+    throw new Error(MESSAGES.thrown(TEXT.noReading));
+  }
+  const values = hub.valuesByMeasure(record);
+  const minutes = hub.ageMinutes(record);
+  const stale = hub.isStale(record);
+  const outputs = {
+    level: index.key,
+    level_index: index.level,
+    level_label: LEVELS[index.key][language],
+    pm25: values.pm25 ?? null,
+    pm10: values.pm10 ?? null,
+    age_minutes: minutes,
+    summary: MESSAGES.summary({
+      level: index.key,
+      pm25: values.pm25,
+      pm10: values.pm10,
+      minutes,
+      stale,
+    })[language],
+  };
+  // A pollutant the sensor does not measure is left out (null for the scene).
+  return Object.fromEntries(Object.entries(outputs).filter(([, value]) => value !== null));
+}
